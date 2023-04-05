@@ -21,9 +21,9 @@ export const siteConfig: SiteConfig = {
       href: "/",
     },
     {
-      title: 'Tabs',
-      href: '/tabs'
-    }
+      title: "Tabs",
+      href: "/tabs",
+    },
   ],
   links: {
     twitter: "https://twitter.com/shadcn",
