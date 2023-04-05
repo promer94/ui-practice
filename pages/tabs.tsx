@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { useRouter } from "next/router"
 import * as Tabs from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
