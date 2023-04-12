@@ -1,45 +1,55 @@
-import { useLayoutEffect, useRef, useState } from "react"
-import * as Tabs from "@radix-ui/react-tabs"
-
+import { MouseEventHandler, useCallback, useEffect, useRef, useState } from "react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { cn } from "@/lib/utils"
 import { Layout } from "@/components/layout"
 
 type Pos = {
   offsetWidth: number
   offsetLeft: number
+  offsetTop: number
+  offsetHeight: number
 }
 
-const calculatePos = (el: Pos, container: Pos) => {
+const calculateClipPath = ({
+  item,
+  container,
+  borderRadius
+}: {
+  item: Pos
+  container: Pos
+  borderRadius: string
+}) => {
   const { offsetWidth: containerWidth, offsetLeft: containerOffsetLeft } =
     container
-  const { offsetWidth, offsetLeft } = el
+  const { offsetWidth, offsetLeft } = item
   const right = containerWidth - offsetLeft - offsetWidth + containerOffsetLeft
   const left = offsetLeft - containerOffsetLeft
+  const top = item.offsetTop - container.offsetTop
+  const bottom = container.offsetHeight - top - item.offsetHeight
   return {
-    left,
-    right,
+    clipPath: `inset(${top}px ${right}px ${bottom}px ${left}px round ${borderRadius})`,
   }
 }
 
-const ExclusiveTabs = () => {
-  const [tab, setTab] = useState("tab1")
-  const lastPos = useRef<Pos | null>(null)
-  const tabContainerRef = useRef<HTMLDivElement>(null)
-  const tabBackgroundRef = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    if (tabContainerRef.current) {
+const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
+  const lastActiveRef = useRef<Pos | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const backgrounRef = useRef<HTMLDivElement>(null)
+  const optionsRef = useRef<KeyframeAnimationOptions>(option)
+  useEffect(() => {
+    optionsRef.current = option
+  }, [option])
+  useEffect(() => {
+    if (backgrounRef.current) {
       const selectedButton =
-        tabContainerRef.current.querySelector<HTMLButtonElement>(
+        backgrounRef.current.querySelector<HTMLButtonElement>(
           "button[data-state=active]"
         )
-      const { left, right } = calculatePos(
-        selectedButton,
-        tabContainerRef.current
-      )
-      tabBackgroundRef.current?.animate(
+      const { clipPath } = calculateClipPath({ item: selectedButton, container: backgrounRef.current, borderRadius: '0.185rem' })
+      backgrounRef.current?.animate(
         [
           {
-            clipPath: `inset(4px ${right}px 4px ${left}px round 4px)`,
+            clipPath
           },
         ],
         {
@@ -47,36 +57,50 @@ const ExclusiveTabs = () => {
           fill: "forwards",
         }
       )
-      lastPos.current = {
-        offsetWidth: selectedButton.offsetWidth,
-        offsetLeft: selectedButton.offsetLeft,
-      }
+      lastActiveRef.current = selectedButton
     }
   }, [])
-  const onClick = (e) => {
-    const now = calculatePos(e.currentTarget, tabContainerRef.current)
-    if (lastPos.current) {
-      const old = calculatePos(lastPos.current, tabContainerRef.current)
-      tabBackgroundRef.current?.animate(
+  const onClick: MouseEventHandler<HTMLButtonElement> = useCallback((e) => {
+    const { clipPath: now } = calculateClipPath({ item: e.currentTarget, container: containerRef.current, borderRadius: '0.185rem' })
+    const { clipPath: bgNow } = calculateClipPath({ item: e.currentTarget, container: backgrounRef.current, borderRadius: '0.185rem' })
+    if (lastActiveRef.current) {
+      const { clipPath: old } = calculateClipPath({
+        item: lastActiveRef.current,
+        container: containerRef.current,
+        borderRadius: '0.185rem'
+      })
+      const { clipPath: bgOld } = calculateClipPath({ item: e.currentTarget, container: backgrounRef.current, borderRadius: '0.185rem' })
+      console.log(
+        {container: {
+          offsetLeft: containerRef.current.offsetLeft,
+          offsetTop: containerRef.current.offsetTop,
+          offsetWidth: containerRef.current.offsetWidth,
+          offsetHeight: containerRef.current.offsetHeight,
+          parent: containerRef.current.offsetParent
+        }, bg: {
+          offsetLeft: backgrounRef.current.offsetLeft,
+          offsetTop: backgrounRef.current.offsetTop,
+          offsetWidth: backgrounRef.current.offsetWidth,
+          offsetHeight: backgrounRef.current.offsetHeight,
+          parent: containerRef.current.offsetParent
+        }}
+      )
+      backgrounRef.current?.animate(
         [
           {
-            clipPath: `inset(4px ${old.right}px 4px ${old.left}px round 4px)`,
+            clipPath: old,
           },
           {
-            clipPath: `inset(4px ${now.right}px 4px ${now.left}px round 4px)`,
+            clipPath: now,
           },
         ],
-        {
-          easing: "cubic-bezier(.165, .84, .44, 1)",
-          duration: 350,
-          fill: "forwards",
-        }
+        optionsRef.current
       )
     } else {
-      tabBackgroundRef.current?.animate(
+      backgrounRef.current?.animate(
         [
           {
-            clipPath: `inset(4px ${now.right}px 4px ${now.left}px round 4px)`,
+            clipPath: now
           },
         ],
         {
@@ -85,146 +109,39 @@ const ExclusiveTabs = () => {
         }
       )
     }
-    lastPos.current = {
-      offsetWidth: e.currentTarget.offsetWidth,
-      offsetLeft: e.currentTarget.offsetLeft,
-    }
+    lastActiveRef.current = e.currentTarget
+  }, [])
+  return {
+    containerRef,
+    backgrounRef,
+    onClick
   }
+}
+
+const TabsComponents = () => {
+  const [tab, setTab] = useState("tokens")
+  const { containerRef, onClick, backgrounRef } = useClipPathAnimtation({
+    duration: 350,
+    easing: "ease-in-out",
+    fill: "forwards",
+  })
   return (
-    <section className={cn("container relative pb-8 pt-6 md:py-10")}>
-      <Tabs.Root value={tab} onValueChange={setTab}>
-        <Tabs.List
-          ref={tabContainerRef}
-          className={cn(
-            "justify-cente inline-flex items-center bg-slate-100 p-1 dark:bg-slate-800"
-          )}
-        >
-          <Tabs.Trigger
-            onClick={onClick}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
-            value="tab1"
-          >
-            One
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            onClick={onClick}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
-            value="tab2"
-          >
-            Two
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            onClick={onClick}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
-            value="tab3"
-          >
-            Three
-          </Tabs.Trigger>
-        </Tabs.List>
-      </Tabs.Root>
-      <Tabs.Root
-        className="pointer-events-none absolute top-10 h-10"
-        defaultValue="tab1"
-        value={tab}
-        onValueChange={setTab}
-      >
-        <Tabs.List
-          ref={tabBackgroundRef}
-          className={cn(
-            "inline-flex items-center justify-center  p-1 dark:bg-slate-800",
-            {
-              "bg-white": true,
-            }
-          )}
-        >
-          <Tabs.Trigger
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-          dark:text-slate-200
-           dark:data-[state=active]:text-slate-100`)}
-            value="tab1"
-          >
-            One
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-           data-[state=active]:text-slate-900
-            dark:text-slate-200
-            dark:data-[state=active]:text-slate-100`)}
-            value="tab2"
-          >
-            Two
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            onClick={onClick}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
-            value="tab3"
-          >
-            Three
-          </Tabs.Trigger>
-        </Tabs.List>
-      </Tabs.Root>
-    </section>
+    <div className='container relative mt-10'>
+      <Tabs defaultValue="tokens" value={tab} onValueChange={setTab}>
+        <TabsList ref={containerRef}>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="tokens" onClick={onClick} >tokens</TabsTrigger>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="members" onClick={onClick}>members</TabsTrigger>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="storage" onClick={onClick} >storage</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <Tabs className={cn("pointer-events-none -translate-y-full")} value={tab} onValueChange={setTab}>
+        <TabsList className={cn("bg-white")} ref={backgrounRef}>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="tokens">tokens</TabsTrigger>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="members">members</TabsTrigger>
+          <TabsTrigger className={cn("data-[state=active]:bg-transparent data-[state=active]:shadow-none dark-[state=active]:bg-transparent")} value="storage">storage</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
   )
 }
 
@@ -256,27 +173,27 @@ const HighlistTab = () => {
     const { offsetLeft, offsetWidth } = e.currentTarget
     const keyFrames = activeButtonRef.current
       ? [
-          {
-            width: `${activeButtonRef.current.offsetWidth}px`,
-            transform: `translate(${activeButtonRef.current.offsetLeft}px)`,
-            opacity: 1,
-          },
-          {
-            width: `${offsetWidth}px`,
-            transform: `translate(${offsetLeft}px)`,
-            opacity: 1,
-          },
-        ]
+        {
+          width: `${activeButtonRef.current.offsetWidth}px`,
+          transform: `translate(${activeButtonRef.current.offsetLeft}px)`,
+          opacity: 1,
+        },
+        {
+          width: `${offsetWidth}px`,
+          transform: `translate(${offsetLeft}px)`,
+          opacity: 1,
+        },
+      ]
       : [
-          {
-            opacity: 0,
-          },
-          {
-            width: `${offsetWidth}px`,
-            transform: `translate(${offsetLeft}px)`,
-            opacity: 1,
-          },
-        ]
+        {
+          opacity: 0,
+        },
+        {
+          width: `${offsetWidth}px`,
+          transform: `translate(${offsetLeft}px)`,
+          opacity: 1,
+        },
+      ]
     highlightRef.current.animate(keyFrames, {
       fill: "forwards",
       duration: activeButtonRef.current ? 150 : 0,
@@ -285,11 +202,9 @@ const HighlistTab = () => {
   }
   return (
     <section className="container">
-      <Tabs.Root onMouseLeave={onMouseLeave}>
-        <Tabs.List
-          className={cn(
-            "relative inline-flex items-center justify-center bg-white p-1 dark:bg-slate-800"
-          )}
+      <Tabs onMouseLeave={onMouseLeave}>
+        <TabsList
+         className="bg-slate-50"
         >
           <div
             ref={highlightRef}
@@ -298,62 +213,26 @@ const HighlistTab = () => {
             }}
             className="absolute left-0 h-10 w-0 p-2 opacity-0"
           ></div>
-          <Tabs.Trigger
+          <TabsTrigger
             onMouseOver={onMouseMove}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
             value="tab1"
           >
             One
-          </Tabs.Trigger>
-          <Tabs.Trigger
+          </TabsTrigger>
+          <TabsTrigger
             onMouseOver={onMouseMove}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
             value="tab2"
           >
             Two
-          </Tabs.Trigger>
-          <Tabs.Trigger
+          </TabsTrigger>
+          <TabsTrigger
             onMouseOver={onMouseMove}
-            className={cn(`
-            inline-flex
-            min-w-[100px]
-            items-center
-            justify-center
-            px-3 py-1.5
-            text-sm font-medium
-            text-slate-700 transition-all
-            disabled:pointer-events-none disabled:opacity-50
-          data-[state=active]:text-slate-900
-             dark:text-slate-200
-            dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:text-slate-100`)}
             value="tab3"
           >
             Three
-          </Tabs.Trigger>
-        </Tabs.List>
-      </Tabs.Root>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
     </section>
   )
 }
@@ -361,7 +240,7 @@ const HighlistTab = () => {
 const Page = () => {
   return (
     <Layout>
-      <ExclusiveTabs></ExclusiveTabs>
+      <TabsComponents></TabsComponents>
       <HighlistTab></HighlistTab>
     </Layout>
   )
