@@ -1,5 +1,5 @@
 import { MouseEventHandler, useCallback, useEffect, useRef, useState } from "react"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from "@/lib/utils"
 import { Layout } from "@/components/layout"
 
@@ -19,11 +19,8 @@ const calculateClipPath = ({
   container: Pos
   borderRadius: string
 }) => {
-  const { offsetWidth: containerWidth, offsetLeft: containerOffsetLeft } =
-    container
-  const { offsetWidth, offsetLeft } = item
-  const right = containerWidth - offsetLeft - offsetWidth + containerOffsetLeft
-  const left = offsetLeft - containerOffsetLeft
+  const right = container.offsetWidth + container.offsetLeft - item.offsetWidth - item.offsetLeft
+  const left = item.offsetLeft - container.offsetLeft
   const top = item.offsetTop - container.offsetTop
   const bottom = container.offsetHeight - top - item.offsetHeight
   return {
@@ -40,12 +37,12 @@ const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
     optionsRef.current = option
   }, [option])
   useEffect(() => {
-    if (backgrounRef.current) {
+    if (backgrounRef.current && containerRef.current) {
       const selectedButton =
-        backgrounRef.current.querySelector<HTMLButtonElement>(
+        containerRef.current.querySelector<HTMLButtonElement>(
           "button[data-state=active]"
         )
-      const { clipPath } = calculateClipPath({ item: selectedButton, container: backgrounRef.current, borderRadius: '0.185rem' })
+      const { clipPath } = calculateClipPath({ item: selectedButton, container: containerRef.current, borderRadius: '0.185rem' })
       backgrounRef.current?.animate(
         [
           {
@@ -62,29 +59,12 @@ const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
   }, [])
   const onClick: MouseEventHandler<HTMLButtonElement> = useCallback((e) => {
     const { clipPath: now } = calculateClipPath({ item: e.currentTarget, container: containerRef.current, borderRadius: '0.185rem' })
-    const { clipPath: bgNow } = calculateClipPath({ item: e.currentTarget, container: backgrounRef.current, borderRadius: '0.185rem' })
     if (lastActiveRef.current) {
       const { clipPath: old } = calculateClipPath({
         item: lastActiveRef.current,
         container: containerRef.current,
         borderRadius: '0.185rem'
       })
-      const { clipPath: bgOld } = calculateClipPath({ item: e.currentTarget, container: backgrounRef.current, borderRadius: '0.185rem' })
-      console.log(
-        {container: {
-          offsetLeft: containerRef.current.offsetLeft,
-          offsetTop: containerRef.current.offsetTop,
-          offsetWidth: containerRef.current.offsetWidth,
-          offsetHeight: containerRef.current.offsetHeight,
-          parent: containerRef.current.offsetParent
-        }, bg: {
-          offsetLeft: backgrounRef.current.offsetLeft,
-          offsetTop: backgrounRef.current.offsetTop,
-          offsetWidth: backgrounRef.current.offsetWidth,
-          offsetHeight: backgrounRef.current.offsetHeight,
-          parent: containerRef.current.offsetParent
-        }}
-      )
       backgrounRef.current?.animate(
         [
           {
@@ -121,8 +101,8 @@ const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
 const TabsComponents = () => {
   const [tab, setTab] = useState("tokens")
   const { containerRef, onClick, backgrounRef } = useClipPathAnimtation({
-    duration: 350,
-    easing: "ease-in-out",
+    duration: 450,
+    easing: "cubic-bezier(0.36, 0.72, 0, 1)",
     fill: "forwards",
   })
   return (
