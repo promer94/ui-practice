@@ -13,12 +13,11 @@ type Pos = {
 const calculateClipPath = ({
   item,
   container,
-  borderRadius
 }: {
-  item: Pos
-  container: Pos
-  borderRadius: string
+  item: HTMLButtonElement
+  container: HTMLDivElement
 }) => {
+  const borderRadius = window.getComputedStyle(item).borderRadius
   const right = container.offsetWidth + container.offsetLeft - item.offsetWidth - item.offsetLeft
   const left = item.offsetLeft - container.offsetLeft
   const top = item.offsetTop - container.offsetTop
@@ -29,7 +28,7 @@ const calculateClipPath = ({
 }
 
 const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
-  const lastActiveRef = useRef<Pos | null>(null)
+  const lastActiveRef = useRef<HTMLButtonElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const backgrounRef = useRef<HTMLDivElement>(null)
   const optionsRef = useRef<KeyframeAnimationOptions>(option)
@@ -42,7 +41,7 @@ const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
         containerRef.current.querySelector<HTMLButtonElement>(
           "button[data-state=active]"
         )
-      const { clipPath } = calculateClipPath({ item: selectedButton, container: containerRef.current, borderRadius: '0.185rem' })
+      const { clipPath } = calculateClipPath({ item: selectedButton, container: containerRef.current })
       backgrounRef.current?.animate(
         [
           {
@@ -58,12 +57,11 @@ const useClipPathAnimtation = (option: KeyframeAnimationOptions) => {
     }
   }, [])
   const onClick: MouseEventHandler<HTMLButtonElement> = useCallback((e) => {
-    const { clipPath: now } = calculateClipPath({ item: e.currentTarget, container: containerRef.current, borderRadius: '0.185rem' })
+    const { clipPath: now } = calculateClipPath({ item: e.currentTarget, container: containerRef.current })
     if (lastActiveRef.current) {
       const { clipPath: old } = calculateClipPath({
         item: lastActiveRef.current,
         container: containerRef.current,
-        borderRadius: '0.185rem'
       })
       backgrounRef.current?.animate(
         [
@@ -146,6 +144,7 @@ const HighlistTab = () => {
     highlightRef.current.animate(keyFrames, {
       duration: 0,
       fill: "forwards",
+      easing: "cubic-bezier(0.36, 0.72, 0, 1)",
     })
     activeButtonRef.current = null
   }
@@ -176,7 +175,8 @@ const HighlistTab = () => {
       ]
     highlightRef.current.animate(keyFrames, {
       fill: "forwards",
-      duration: activeButtonRef.current ? 150 : 0,
+      duration: activeButtonRef.current ? 350 : 0,
+      easing: "cubic-bezier(0.36, 0.72, 0, 1)",
     })
     activeButtonRef.current = e.currentTarget
   }
